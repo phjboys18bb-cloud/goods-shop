@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>굿즈샵 — 상품 목록</title>
+<meta name="description" content="작은 굿즈샵. 스티커·에코백·키링 등을 판매합니다.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">굿즈<span>샵</span></a>
+    <nav class="site" id="authBox"></nav>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">PRODUCTS</span>
+    <h1>굿즈 목록</h1>
+    <p class="sub">마음에 드는 굿즈를 골라보세요. 테스트 결제라 실제 돈은 빠져나가지 않습니다.</p>
+
+    <div class="alert err" id="err" role="alert"></div>
+
+    <div id="loading" class="spinner"></div>
+    <div class="grid products" id="list"></div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>굿즈샵 · 토스페이먼츠 테스트 모드</span>
+    <span>실제 결제가 아닙니다</span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://js.tosspayments.com/v2/standard"></script>
+<script src="assets/config.js"></script>
+<script src="assets/format.js"></script>
+<script src="assets/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var listEl    = document.getElementById('list');
+  var loadingEl = document.getElementById('loading');
+  var errEl     = document.getElementById('err');
+  var currentUser = null;
+
+  function showErr(msg) { errEl.textContent = msg; }
+
+  /* 같은 폴더의 다른 페이지 절대 URL.
+     GitHub Pages 는 /goods-shop/ 하위 경로에 배포되므로 origin 만 쓰면 안 된다. */
+  function pageUrl(file) {
+    return location.origin + location.pathname.replace(/[^/]*$/, file);
+  }
+
+  /* 토스 주문번호: 6~64자, 영문/숫자/-/_ 만 허용 */
+  function newOrderId() {
+    return 'od_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  /* ---- 상품 목록 그리기 ---- */
+  function render(products) {
+    if (!products.length) {
+      listEl.innerHTML = '<div class="empty"><span class="big">📦</span>등록된 상품이 없습니다.</div>';
+      return;
+    }
+
+    listEl.innerHTML = products.map(function (p) {
+      var soldout = p.stock <= 0;
+      return '' +
+        '<article class="card product' + (soldout ? ' soldout' : '') + '">' +
+          '<div class="emoji">' + Fmt.escape(p.emoji || '📦') + '</div>' +
+          '<h3>' + Fmt.escape(p.name) + '</h3>' +
+          '<p>' + Fmt.escape(p.description || '') + '</p>' +
+          '<div class="price">' + Fmt.won(p.price) + '</div>' +
+          '<div class="stock">' + (soldout ? '품절' : '재고 ' + p.stock + '개') + '</div>' +
+          '<button type="button" class="btn btn-block buy" data-id="' + Fmt.escape(p.id) + '"' +
+            (soldout ? ' disabled' : '') + '>결제하기</button>' +
+        '</article>';
+    }).join('');
+
+    Array.prototype.forEach.call(listEl.querySelectorAll('.buy'), function (btn) {
+      btn.addEventListener('click', function () {
+        var product = products.filter(function (p) { return p.id === btn.getAttribute('data-id'); })[0];
+        if (product) startPayment(product, btn);
+      });
+    });
+  }
+
+  /* ---- 결제 시작 ---- */
+  function startPayment(product, btn) {
+    showErr('');
+
+    if (!currentUser) {
+      location.href = 'login.html?next=index.html';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '준비 중…';
+
+    var orderId = newOrderId();
+    var amount  = product.price;   // 수량 1 고정. 서버가 이 값을 다시 검증한다.
+
+    /* 1) 주문을 PENDING 으로 먼저 기록한다.
+          결제창을 띄우기 전에 만들어 둬야, 승인 단계에서 대조할 대상이 생긴다. */
+    App.sb.from('orders').insert({
+      user_id:    currentUser.id,
+      product_id: product.id,
+      order_id:   orderId,
+      quantity:   1,
+      amount:     amount,
+      status:     'PENDING'
+    }).then(function (res) {
+      if (res.error) throw new Error('주문 생성에 실패했습니다: ' + res.error.message);
+
+      /* 2) 토스 결제창 호출 */
+      var tossPayments = TossPayments(APP_CONFIG.TOSS_CLIENT_KEY);
+      var payment = tossPayments.payment({ customerKey: currentUser.id });
+
+      return payment.requestPayment({
+        method: 'CARD',
+        amount: { currency: 'KRW', value: amount },
+        orderId: orderId,
+        orderName: product.name,
+        successUrl: pageUrl('payment-success.html'),
+        failUrl:    pageUrl('payment-fail.html'),
+        card: { useEscrow: false, flowMode: 'DEFAULT', useCardPoint: false, useAppCardOnly: false }
+      });
+    }).catch(function (e) {
+      /* 사용자가 결제창을 그냥 닫은 경우도 여기로 온다 — 오류로 취급하지 않는다. */
+      var msg = (e && e.message) || '결제를 시작하지 못했습니다.';
+      if (!/취소|CANCEL|closed/i.test(msg)) showErr(msg);
+      btn.disabled = false;
+      btn.textContent = '결제하기';
+    });
+  }
+
+  /* ---- 초기화 ---- */
+  App.getUser().then(function (user) {
+    currentUser = user;
+    App.renderHeader(user);
+    App.markActiveNav();
+    return App.sb.from('products').select('*').order('price', { ascending: true });
+  }).then(function (res) {
+    loadingEl.style.display = 'none';
+    if (res.error) { showErr('상품을 불러오지 못했습니다: ' + res.error.message); return; }
+    render(res.data || []);
+  }).catch(function (e) {
+    loadingEl.style.display = 'none';
+    showErr('페이지를 불러오지 못했습니다: ' + ((e && e.message) || e));
+  });
+})();
+</script>
+</body>
+</html>

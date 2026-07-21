@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>굿즈샵 — 결제 실패</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">굿즈<span>샵</span></a>
+    <nav class="site" id="authBox"></nav>
+  </div>
+</header>
+
+<section>
+  <div class="wrap form-narrow center">
+    <div style="font-size:3rem">😕</div>
+    <h1 style="margin-top:8px">결제가 취소되었습니다</h1>
+    <p class="sub" style="margin:8px auto 0">
+      결제창에서 취소했거나 결제에 실패했습니다. 다시 시도하실 수 있습니다.
+    </p>
+
+    <div class="card" style="margin-top:22px;text-align:left">
+      <dl class="dl" id="detail"></dl>
+    </div>
+
+    <div style="margin-top:22px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <a class="btn" href="index.html">상품 목록으로</a>
+      <a class="btn btn-ghost" href="orders.html">결제 내역 보기</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>굿즈샵 · 토스페이먼츠 테스트 모드</span>
+    <span>실제 결제가 아닙니다</span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/format.js"></script>
+<script src="assets/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* 토스는 실패 시 code / message / orderId 를 쿼리로 붙여서 보낸다. */
+  var q       = new URLSearchParams(location.search);
+  var code    = q.get('code');
+  var message = q.get('message');
+  var orderId = q.get('orderId');
+
+  var rows = [];
+  if (orderId) rows.push(['주문번호', Fmt.escape(orderId)]);
+  if (code)    rows.push(['오류 코드', Fmt.escape(code)]);
+  rows.push(['사유', Fmt.escape(message || '알 수 없는 이유로 결제가 중단되었습니다.')]);
+
+  document.getElementById('detail').innerHTML = rows.map(function (r) {
+    return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
+  }).join('');
+
+  App.getUser().then(function (user) {
+    App.renderHeader(user);
+  });
+})();
+</script>
+</body>
+</html>

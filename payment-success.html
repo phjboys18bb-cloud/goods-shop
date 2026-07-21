@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>굿즈샵 — 결제 처리 중</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">굿즈<span>샵</span></a>
+    <nav class="site" id="authBox"></nav>
+  </div>
+</header>
+
+<section>
+  <div class="wrap form-narrow">
+
+    <!-- 처리 중 -->
+    <div id="pending" class="center">
+      <span class="eyebrow">PAYMENT</span>
+      <h1>결제를 확인하고 있습니다</h1>
+      <p class="sub" style="margin:0 auto">잠시만 기다려 주세요. 창을 닫지 마세요.</p>
+      <div class="spinner"></div>
+    </div>
+
+    <!-- 성공 -->
+    <div id="done" class="center" hidden>
+      <div style="font-size:3rem">✅</div>
+      <h1 style="margin-top:8px">결제가 완료됐습니다</h1>
+      <div class="card" style="margin-top:22px;text-align:left">
+        <dl class="dl" id="summary"></dl>
+      </div>
+      <div style="margin-top:22px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <a class="btn" href="orders.html">결제 내역 보기</a>
+        <a class="btn btn-ghost" href="index.html">계속 둘러보기</a>
+      </div>
+    </div>
+
+    <!-- 실패 -->
+    <div id="failed" class="center" hidden>
+      <div style="font-size:3rem">⚠️</div>
+      <h1 style="margin-top:8px">결제를 완료하지 못했습니다</h1>
+      <div class="alert err" id="err" style="margin-top:18px;text-align:left"></div>
+      <div style="margin-top:6px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <a class="btn" href="index.html">상품 목록으로</a>
+        <a class="btn btn-ghost" href="orders.html">결제 내역 보기</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>굿즈샵 · 토스페이먼츠 테스트 모드</span>
+    <span>실제 결제가 아닙니다</span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/format.js"></script>
+<script src="assets/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var pendingEl = document.getElementById('pending');
+  var doneEl    = document.getElementById('done');
+  var failedEl  = document.getElementById('failed');
+  var errEl     = document.getElementById('err');
+  var sumEl     = document.getElementById('summary');
+
+  function fail(msg) {
+    pendingEl.hidden = true;
+    failedEl.hidden  = false;
+    errEl.textContent = msg;
+  }
+
+  function succeed(rows) {
+    pendingEl.hidden = true;
+    doneEl.hidden    = false;
+    sumEl.innerHTML = rows.map(function (r) {
+      return '<dt>' + Fmt.escape(r[0]) + '</dt><dd>' + r[1] + '</dd>';
+    }).join('');
+  }
+
+  var q         = new URLSearchParams(location.search);
+  var paymentKey = q.get('paymentKey');
+  var orderId    = q.get('orderId');
+  var amountRaw  = q.get('amount');
+
+  if (!paymentKey || !orderId || !amountRaw) {
+    fail('결제 정보가 올바르지 않습니다. 상품 목록에서 다시 시도해 주세요.');
+    return;
+  }
+
+  var amount = Number(amountRaw);
+  if (!isFinite(amount) || amount <= 0) {
+    fail('결제 금액 정보가 올바르지 않습니다.');
+    return;
+  }
+
+  App.getUser().then(function (user) {
+    App.renderHeader(user);
+    if (!user) {
+      fail('로그인 정보가 만료됐습니다. 다시 로그인한 뒤 결제 내역을 확인해 주세요.');
+      return null;
+    }
+    return App.getToken();
+  }).then(function (token) {
+    if (!token) return null;
+
+    /* 승인 요청은 반드시 서버(Edge Function)를 거친다.
+       브라우저가 토스 승인 API 를 직접 부르려면 시크릿 키가 필요한데,
+       그 키를 여기에 두면 누구나 훔쳐 쓸 수 있기 때문이다. */
+    return fetch(APP_CONFIG.SUPABASE_URL + '/functions/v1/confirm-payment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': APP_CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ paymentKey: paymentKey, orderId: orderId, amount: amount })
+    }).then(function (res) {
+      return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+    });
+  }).then(function (result) {
+    if (!result) return;
+
+    if (!result.ok) {
+      fail((result.body && result.body.message) || '결제 승인에 실패했습니다.');
+      return;
+    }
+
+    succeed([
+      ['주문번호', Fmt.escape(orderId)],
+      ['결제금액', Fmt.won(amount)],
+      ['상태',     Fmt.statusBadge('PAID')]
+    ]);
+  }).catch(function (e) {
+    fail('결제 확인 중 오류가 발생했습니다: ' + ((e && e.message) || e));
+  });
+})();
+</script>
+</body>
+</html>

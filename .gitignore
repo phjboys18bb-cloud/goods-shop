@@ -1,0 +1,12 @@
+# 시크릿이 실수로 들어오는 걸 막는 안전장치
+.env
+.env.*
+*.key
+*secret*
+*service_role*
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

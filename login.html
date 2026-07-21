@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>굿즈샵 — 로그인 / 회원가입</title>
+<meta name="description" content="굿즈샵 로그인 및 회원가입">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">굿즈<span>샵</span></a>
+    <nav class="site" id="authBox"></nav>
+  </div>
+</header>
+
+<section>
+  <div class="wrap form-narrow">
+    <div class="center" style="margin-bottom:24px">
+      <span class="eyebrow">ACCOUNT</span>
+      <h1 id="title">로그인</h1>
+    </div>
+
+    <div class="tabs">
+      <button type="button" id="tabLogin"  class="on">로그인</button>
+      <button type="button" id="tabSignup">회원가입</button>
+    </div>
+
+    <div class="alert err"  id="err"  role="alert"></div>
+    <div class="alert ok"   id="okMsg" role="status"></div>
+
+    <form id="form" class="card" novalidate>
+      <div class="field">
+        <label for="email">이메일</label>
+        <input type="email" id="email" autocomplete="email" placeholder="you@example.com" required>
+      </div>
+
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" autocomplete="current-password"
+               placeholder="6자 이상" required minlength="6">
+        <div class="hint" id="pwHint"></div>
+      </div>
+
+      <button type="submit" class="btn btn-block" id="submitBtn">로그인</button>
+    </form>
+
+    <p class="hint center" style="margin-top:16px">
+      이메일 인증 없이 가입 즉시 이용할 수 있습니다.
+    </p>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>굿즈샵 · 토스페이먼츠 테스트 모드</span>
+    <span>실제 결제가 아닙니다</span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/format.js"></script>
+<script src="assets/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var mode = 'login';   // 'login' | 'signup'
+
+  var form      = document.getElementById('form');
+  var emailEl   = document.getElementById('email');
+  var pwEl      = document.getElementById('password');
+  var errEl     = document.getElementById('err');
+  var okEl      = document.getElementById('okMsg');
+  var titleEl   = document.getElementById('title');
+  var submitBtn = document.getElementById('submitBtn');
+  var pwHint    = document.getElementById('pwHint');
+  var tabLogin  = document.getElementById('tabLogin');
+  var tabSignup = document.getElementById('tabSignup');
+
+  /* 로그인 후 돌아갈 페이지. 외부 주소로 튕기지 않도록 파일명만 허용한다. */
+  function nextPage() {
+    var raw = new URLSearchParams(location.search).get('next') || 'index.html';
+    return /^[a-zA-Z0-9._-]+\.html$/.test(raw) ? raw : 'index.html';
+  }
+
+  function setMode(next) {
+    mode = next;
+    var isLogin = mode === 'login';
+
+    titleEl.textContent   = isLogin ? '로그인' : '회원가입';
+    submitBtn.textContent = isLogin ? '로그인' : '가입하고 시작하기';
+    pwEl.setAttribute('autocomplete', isLogin ? 'current-password' : 'new-password');
+    pwHint.textContent    = isLogin ? '' : '6자 이상 입력해 주세요.';
+
+    tabLogin.classList.toggle('on', isLogin);
+    tabSignup.classList.toggle('on', !isLogin);
+
+    errEl.textContent = '';
+    okEl.textContent  = '';
+  }
+
+  tabLogin.addEventListener('click',  function () { setMode('login'); });
+  tabSignup.addEventListener('click', function () { setMode('signup'); });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errEl.textContent = '';
+    okEl.textContent  = '';
+
+    var email = emailEl.value.trim();
+    var pw    = pwEl.value;
+
+    if (!email) { errEl.textContent = '이메일을 입력해 주세요.'; return; }
+    if (pw.length < 6) { errEl.textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '처리 중…';
+
+    var task = mode === 'login'
+      ? App.sb.auth.signInWithPassword({ email: email, password: pw })
+      : App.sb.auth.signUp({ email: email, password: pw });
+
+    task.then(function (res) {
+      if (res.error) throw res.error;
+
+      /* 이메일 인증을 꺼놨기 때문에 가입 직후 바로 세션이 생긴다.
+         혹시 세션이 없으면(설정이 바뀐 경우) 로그인 탭으로 안내한다. */
+      if (!res.data || !res.data.session) {
+        okEl.textContent = '가입이 완료됐습니다. 로그인해 주세요.';
+        setMode('login');
+        return;
+      }
+      location.href = nextPage();
+    }).catch(function (e2) {
+      var m = (e2 && e2.message) || '';
+      if (/Invalid login credentials/i.test(m))      m = '이메일 또는 비밀번호가 올바르지 않습니다.';
+      else if (/already registered|User already/i.test(m)) m = '이미 가입된 이메일입니다. 로그인 탭을 이용해 주세요.';
+      else if (/Password should be/i.test(m))        m = '비밀번호는 6자 이상이어야 합니다.';
+      else if (/valid email/i.test(m))               m = '이메일 형식이 올바르지 않습니다.';
+      errEl.textContent = m || '처리 중 문제가 발생했습니다.';
+    }).then(function () {
+      submitBtn.disabled = false;
+      submitBtn.textContent = mode === 'login' ? '로그인' : '가입하고 시작하기';
+    });
+  });
+
+  /* 이미 로그인돼 있으면 굳이 이 페이지에 머물 이유가 없다. */
+  App.getUser().then(function (user) {
+    if (user) { location.replace(nextPage()); return; }
+    App.renderHeader(null);
+  });
+})();
+</script>
+</body>
+</html>

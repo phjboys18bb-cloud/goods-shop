@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>굿즈샵 — 관리자</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">굿즈<span>샵</span></a>
+    <nav class="site" id="authBox"></nav>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">ADMIN</span>
+    <h1>전체 결제 내역</h1>
+    <p class="sub">모든 사용자의 결제 내역입니다. 관리자 계정만 조회할 수 있습니다.</p>
+
+    <div class="alert err" id="err" role="alert"></div>
+
+    <div id="stats" class="grid" style="grid-template-columns:repeat(3,1fr);margin:24px 0" hidden></div>
+
+    <div id="loading" class="spinner"></div>
+    <div class="orders" id="list"></div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>굿즈샵 · 토스페이먼츠 테스트 모드</span>
+    <span>실제 결제가 아닙니다</span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/format.js"></script>
+<script src="assets/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var listEl    = document.getElementById('list');
+  var loadingEl = document.getElementById('loading');
+  var errEl     = document.getElementById('err');
+  var statsEl   = document.getElementById('stats');
+
+  function denied(msg) {
+    loadingEl.style.display = 'none';
+    listEl.innerHTML =
+      '<div class="empty"><span class="big">🔒</span>' + Fmt.escape(msg) +
+      '<div style="margin-top:16px"><a class="btn" href="index.html">상품 목록으로</a></div></div>';
+  }
+
+  function renderStats(orders) {
+    var paid = orders.filter(function (o) { return o.status === 'PAID'; });
+    var total = paid.reduce(function (s, o) { return s + Number(o.amount || 0); }, 0);
+
+    statsEl.hidden = false;
+    statsEl.innerHTML = '' +
+      '<div class="card center"><div class="muted" style="font-size:.84rem">전체 주문</div>' +
+        '<div style="font-size:1.5rem;font-weight:800">' + orders.length + '건</div></div>' +
+      '<div class="card center"><div class="muted" style="font-size:.84rem">결제 완료</div>' +
+        '<div style="font-size:1.5rem;font-weight:800">' + paid.length + '건</div></div>' +
+      '<div class="card center"><div class="muted" style="font-size:.84rem">결제 금액 합계</div>' +
+        '<div style="font-size:1.5rem;font-weight:800">' + Fmt.won(total) + '</div></div>';
+  }
+
+  function render(orders) {
+    if (!orders.length) {
+      listEl.innerHTML = '<div class="empty"><span class="big">🧾</span>아직 결제 내역이 없습니다.</div>';
+      return;
+    }
+
+    renderStats(orders);
+
+    listEl.innerHTML = orders.map(function (o) {
+      return '' +
+        '<article class="order admin-row">' +
+          '<div class="emoji">' + Fmt.escape(o.product_emoji || '📦') + '</div>' +
+          '<div>' +
+            '<div class="name">' + Fmt.escape(o.product_name || '(삭제된 상품)') + '</div>' +
+            '<div class="meta">' + Fmt.escape(o.order_id) + ' · ' + Fmt.date(o.paid_at || o.created_at) + '</div>' +
+          '</div>' +
+          '<div class="buyer">' + Fmt.escape(o.buyer_email || '-') + '</div>' +
+          '<div class="amt">' + Fmt.won(o.amount) + '</div>' +
+          '<div>' + Fmt.statusBadge(o.status) + '</div>' +
+        '</article>';
+    }).join('');
+  }
+
+  App.requireLogin().then(function (user) {
+    if (!user) return null;
+    App.renderHeader(user);
+    App.markActiveNav();
+
+    /* 화면에서 미리 걸러주는 건 사용자 편의일 뿐이다.
+       진짜 차단은 아래 admin_all_orders() 함수 안의 is_admin() 이 한다.
+       (이 if 문을 개발자도구로 지워도 데이터는 안 나온다) */
+    if (!App.isAdmin(user)) {
+      denied('관리자 계정으로 로그인해야 볼 수 있는 페이지입니다.');
+      return null;
+    }
+
+    return App.sb.rpc('admin_all_orders');
+  }).then(function (res) {
+    if (!res) return;
+    loadingEl.style.display = 'none';
+
+    if (res.error) {
+      if (/관리자|42501|permission/i.test(res.error.message || '')) {
+        denied('관리자 권한이 없습니다.');
+      } else {
+        errEl.textContent = '내역을 불러오지 못했습니다: ' + res.error.message;
+      }
+      return;
+    }
+    render(res.data || []);
+  }).catch(function (e) {
+    loadingEl.style.display = 'none';
+    errEl.textContent = '오류가 발생했습니다: ' + ((e && e.message) || e);
+  });
+})();
+</script>
+</body>
+</html>

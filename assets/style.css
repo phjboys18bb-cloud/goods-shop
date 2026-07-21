@@ -1,0 +1,301 @@
+/* ==========================================================================
+   굿즈샵 공통 스타일
+   - 색은 전부 CSS 변수로 관리한다. 인라인에 색상값을 직접 쓰지 않는다.
+   - 라이트 모드가 기본, 다크 모드는 @media 로 덮어쓴다.
+   ========================================================================== */
+
+:root {
+  --bg:        #fbfaf8;
+  --bg-soft:   #f2efea;
+  --bg-card:   #ffffff;
+  --line:      #e3ded6;
+  --text:      #1d1b18;
+  --text-dim:  #6f6a63;
+
+  --accent:      #0d8f7f;
+  --accent-soft: rgba(13, 143, 127, 0.12);
+
+  --ok:      #0f7b52;
+  --ok-soft: rgba(15, 123, 82, 0.12);
+  --warn:      #9a6a00;
+  --warn-soft: rgba(154, 106, 0, 0.13);
+  --danger:      #b3261e;
+  --danger-soft: rgba(179, 38, 30, 0.11);
+
+  --radius: 14px;
+  --maxw:   1120px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:       #121311;
+    --bg-soft:  #1a1c1a;
+    --bg-card:  #202220;
+    --line:     #313430;
+    --text:     #f1efe9;
+    --text-dim: #a09c94;
+
+    --accent:      #2fbfab;
+    --accent-soft: rgba(47, 191, 171, 0.16);
+
+    --ok:      #4fc98d;
+    --ok-soft: rgba(79, 201, 141, 0.15);
+    --warn:      #e0a52b;
+    --warn-soft: rgba(224, 165, 43, 0.15);
+    --danger:      #f2857c;
+    --danger-soft: rgba(242, 133, 124, 0.15);
+  }
+}
+
+/* ---- 기본 ---------------------------------------------------------------- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo",
+               "Malgun Gothic", "Segoe UI", sans-serif;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+section { padding: 56px 0; }
+
+h1 { font-size: 1.9rem; letter-spacing: -0.035em; }
+h2 { font-size: 1.35rem; letter-spacing: -0.02em; }
+h3 { font-size: 1.03rem; letter-spacing: -0.01em; }
+
+.eyebrow {
+  display: inline-block;
+  font-size: 0.74rem; font-weight: 800; letter-spacing: 0.14em;
+  color: var(--accent); margin-bottom: 8px;
+}
+
+.sub { color: var(--text-dim); font-size: 0.95rem; max-width: 60ch; }
+
+.muted { color: var(--text-dim); }
+.center { text-align: center; }
+
+/* 키보드 사용자를 위한 포커스 링 — 마우스 클릭 시에는 안 보인다 */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---- 헤더 ---------------------------------------------------------------- */
+header.site {
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+header.site .wrap {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; height: 62px;
+}
+
+.brand {
+  font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em;
+  color: var(--text); text-decoration: none;
+}
+.brand span { color: var(--accent); }
+
+nav.site { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+nav.site a {
+  color: var(--text-dim); text-decoration: none;
+  font-size: 0.9rem; font-weight: 600;
+  padding: 7px 11px; border-radius: 8px;
+}
+nav.site a:hover { color: var(--text); background: var(--bg-soft); }
+nav.site a.active { color: var(--accent); background: var(--accent-soft); }
+
+.who { font-size: 0.85rem; color: var(--text-dim); }
+
+/* ---- 버튼 ---------------------------------------------------------------- */
+.btn {
+  display: inline-block; text-align: center; text-decoration: none;
+  cursor: pointer; border: none; font-family: inherit;
+  background: var(--accent); color: #fff;
+  padding: 12px 22px; border-radius: 10px;
+  font-weight: 700; font-size: 0.94rem;
+  transition: transform 0.15s, filter 0.15s;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--accent); filter: none; }
+
+.btn-danger { background: var(--danger); }
+.btn-sm { padding: 8px 15px; font-size: 0.86rem; }
+.btn-block { display: block; width: 100%; }
+
+/* ---- 카드 / 상품 --------------------------------------------------------- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+}
+
+.grid { display: grid; gap: 18px; }
+.products { grid-template-columns: repeat(3, 1fr); }
+
+.product { display: flex; flex-direction: column; }
+.product .emoji {
+  font-size: 2.4rem; line-height: 1;
+  width: 68px; height: 68px; border-radius: 16px;
+  background: var(--accent-soft);
+  display: grid; place-items: center;
+  margin-bottom: 14px;
+}
+.product h3 { margin-bottom: 6px; }
+.product p  { color: var(--text-dim); font-size: 0.9rem; flex: 1; }
+.product .price {
+  font-size: 1.22rem; font-weight: 800; letter-spacing: -0.02em;
+  margin: 14px 0 4px;
+}
+.product .stock { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 14px; }
+.product.soldout { opacity: 0.55; }
+
+/* ---- 폼 ------------------------------------------------------------------ */
+.form-narrow { max-width: 420px; margin: 0 auto; }
+
+.field { margin-bottom: 16px; }
+.field label {
+  display: block; font-size: 0.86rem; font-weight: 700;
+  margin-bottom: 6px; color: var(--text);
+}
+
+input[type="email"], input[type="password"], input[type="text"], input[type="number"], select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: inherit; font-size: 0.95rem;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+input::placeholder { color: var(--text-dim); }
+
+.hint { font-size: 0.8rem; color: var(--text-dim); margin-top: 6px; }
+
+/* 탭 (로그인 / 회원가입 전환) */
+.tabs { display: flex; gap: 4px; background: var(--bg-soft);
+        padding: 4px; border-radius: 11px; margin-bottom: 22px; }
+.tabs button {
+  flex: 1; border: none; cursor: pointer; font-family: inherit;
+  background: transparent; color: var(--text-dim);
+  padding: 9px; border-radius: 8px; font-weight: 700; font-size: 0.9rem;
+}
+.tabs button.on { background: var(--bg-card); color: var(--text); }
+
+/* ---- 알림 --------------------------------------------------------------- */
+.alert {
+  border-radius: 10px; padding: 12px 14px;
+  font-size: 0.89rem; margin-bottom: 16px;
+  border: 1px solid transparent;
+}
+.alert.err  { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+.alert.ok   { background: var(--ok-soft);     color: var(--ok);     border-color: var(--ok); }
+.alert.warn { background: var(--warn-soft);   color: var(--warn);   border-color: var(--warn); }
+.alert:empty { display: none; }
+
+/* ---- 상태 배지 ----------------------------------------------------------- */
+.status {
+  display: inline-block;
+  font-size: 0.76rem; font-weight: 800; letter-spacing: 0.03em;
+  padding: 4px 11px; border-radius: 99px; white-space: nowrap;
+}
+.status.paid    { background: var(--ok-soft);     color: var(--ok); }
+.status.pending { background: var(--warn-soft);   color: var(--warn); }
+.status.failed  { background: var(--danger-soft); color: var(--danger); }
+
+/* ---- 주문 목록 -----------------------------------------------------------
+   표(table) 대신 행(row) 단위 그리드를 쓴다.
+   모바일에서 가로 스크롤 없이 세로로 쌓이게 하기 위해서다.            */
+.orders { display: flex; flex-direction: column; gap: 12px; }
+
+.order {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: 44px 1fr auto auto;
+  gap: 14px; align-items: center;
+}
+.order .emoji { font-size: 1.7rem; line-height: 1; }
+.order .name  { font-weight: 700; }
+.order .meta  { font-size: 0.8rem; color: var(--text-dim); }
+.order .amt   { font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+
+/* 관리자 페이지 — 구매자 열이 하나 더 붙는다 */
+.order.admin-row { grid-template-columns: 44px 1fr 1fr auto auto; }
+.order .buyer { font-size: 0.84rem; color: var(--text-dim); word-break: break-all; }
+
+/* ---- 빈 상태 / 로딩 ------------------------------------------------------ */
+.empty {
+  text-align: center; padding: 60px 20px;
+  color: var(--text-dim); font-size: 0.94rem;
+}
+.empty .big { font-size: 2.6rem; display: block; margin-bottom: 12px; }
+
+.spinner {
+  width: 34px; height: 34px; margin: 40px auto;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- 요약 줄 (결제 결과 등) ---------------------------------------------- */
+.dl { display: grid; grid-template-columns: 130px 1fr; gap: 10px 18px; margin-top: 6px; }
+.dl dt { color: var(--text-dim); font-size: 0.88rem; }
+.dl dd { font-weight: 600; font-size: 0.92rem; word-break: break-all; }
+
+/* ---- 푸터 ---------------------------------------------------------------- */
+footer.site {
+  border-top: 1px solid var(--line);
+  margin-top: 40px; padding: 26px 0;
+  color: var(--text-dim); font-size: 0.85rem;
+}
+footer.site .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+/* ---- 반응형 -------------------------------------------------------------- */
+@media (max-width: 880px) {
+  .products { grid-template-columns: repeat(2, 1fr); }
+  .order       { grid-template-columns: 36px 1fr auto; }
+  .order .amt  { grid-column: 2 / -1; }
+  .order.admin-row { grid-template-columns: 36px 1fr auto; }
+  .order .buyer    { grid-column: 2 / -1; }
+  h1 { font-size: 1.6rem; }
+}
+
+@media (max-width: 560px) {
+  .products { grid-template-columns: 1fr; }
+  .wrap { padding: 0 16px; }
+  header.site .wrap { height: auto; padding-top: 10px; padding-bottom: 10px;
+                      flex-direction: column; align-items: flex-start; }
+  .dl { grid-template-columns: 1fr; gap: 2px 0; }
+  .dl dd { margin-bottom: 10px; }
+}
+
+/* ---- 모션 최소화 설정 존중 ------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .spinner { border-top-color: var(--line); }
+}
