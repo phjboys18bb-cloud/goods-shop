@@ -85,14 +85,16 @@ $$;
 
 `admins` 테이블은 RLS가 켜져 있고 정책이 하나도 없어서, 클라이언트는 읽을 수도 쓸 수도 없다. `is_admin()`은 `security definer`라 함수 안에서만 이 테이블을 본다.
 
-| 테이블 | 동작 | 정책 |
-|---|---|---|
-| `products` | SELECT | 누구나 (`using (true)`) |
-| `products` | INSERT/UPDATE/DELETE | **정책 없음 → 전부 차단** |
-| `orders` | SELECT | `auth.uid() = user_id or is_admin()` |
-| `orders` | INSERT | `auth.uid() = user_id and status = 'PENDING'` |
-| `orders` | UPDATE/DELETE | **정책 없음 → 전부 차단** |
-| `admins` | 전부 | **정책 없음 → 클라이언트는 읽기도 불가**. `is_admin()`만 접근 |
+| 테이블 | 동작 | 대상 역할 | 정책 |
+|---|---|---|---|
+| `products` | SELECT | 누구나(anon 포함) | `using (true)` — 로그아웃도 상점을 봐야 함 |
+| `products` | INSERT/UPDATE/DELETE | — | **정책 없음 → 전부 차단** |
+| `orders` | SELECT | `authenticated`만 | `auth.uid() = user_id or is_admin()` |
+| `orders` | INSERT | `authenticated`만 | `auth.uid() = user_id and status = 'PENDING'` |
+| `orders` | UPDATE/DELETE | — | **정책 없음 → 전부 차단** |
+| `admins` | 전부 | — | **정책 없음 → 클라이언트 접근 전면 차단**. `is_admin()`만 접근 |
+
+`orders` 정책은 `authenticated`로 한정한다(`005_tighten_anon_rls.sql`). 로그아웃(anon)은 주문에 정책 자체가 없어 기본 거부되고, 관리자 함수 `is_admin()`·`admin_all_orders()`도 anon 실행이 막혀 있다. 즉 **anon 키로 할 수 있는 일은 상품 조회 하나뿐**이다.
 
 `orders`에 UPDATE 정책을 **일부러 안 만든 것**이 핵심이다. 클라이언트는 `status`를 `PAID`로 바꿀 수 없다. 오직 Edge Function만 (service_role 키로 RLS를 우회해서) 바꿀 수 있다.
 
