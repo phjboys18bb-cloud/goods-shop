@@ -20,32 +20,32 @@
   <div class="wrap form-narrow">
 
     <!-- 처리 중 -->
-    <div id="pending" class="center">
+    <div id="pending" class="result">
       <span class="eyebrow">PAYMENT</span>
       <h1>결제를 확인하고 있습니다</h1>
-      <p class="sub" style="margin:0 auto">잠시만 기다려 주세요. 창을 닫지 마세요.</p>
+      <p class="sub">잠시만 기다려 주세요. 창을 닫지 마세요.</p>
       <div class="spinner"></div>
     </div>
 
     <!-- 성공 -->
-    <div id="done" class="center" hidden>
-      <div style="font-size:3rem">✅</div>
-      <h1 style="margin-top:8px">결제가 완료됐습니다</h1>
-      <div class="card" style="margin-top:22px;text-align:left">
+    <div id="done" class="result" hidden>
+      <div class="icon">✅</div>
+      <h1>결제가 완료됐습니다</h1>
+      <div class="card box">
         <dl class="dl" id="summary"></dl>
       </div>
-      <div style="margin-top:22px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <div class="actions">
         <a class="btn" href="orders.html">결제 내역 보기</a>
         <a class="btn btn-ghost" href="index.html">계속 둘러보기</a>
       </div>
     </div>
 
     <!-- 실패 -->
-    <div id="failed" class="center" hidden>
-      <div style="font-size:3rem">⚠️</div>
-      <h1 style="margin-top:8px">결제를 완료하지 못했습니다</h1>
-      <div class="alert err" id="err" style="margin-top:18px;text-align:left"></div>
-      <div style="margin-top:6px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+    <div id="failed" class="result" hidden>
+      <div class="icon">⚠️</div>
+      <h1>결제를 완료하지 못했습니다</h1>
+      <div class="alert err box" id="err"></div>
+      <div class="actions">
         <a class="btn" href="index.html">상품 목록으로</a>
         <a class="btn btn-ghost" href="orders.html">결제 내역 보기</a>
       </div>
