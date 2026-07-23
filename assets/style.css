@@ -308,7 +308,11 @@ footer.site {
   margin-top: 40px; padding: 26px 0;
   color: var(--text-dim); font-size: 0.85rem;
 }
-footer.site .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+footer.site .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.foot-info div { margin-bottom: 2px; }
+.foot-links a { color: var(--text-dim); text-decoration: none; margin-left: 16px; }
+.foot-links a:first-child { margin-left: 0; }
+.foot-links a:hover { color: var(--accent); }
 
 /* ---- 반응형 -------------------------------------------------------------- */
 @media (max-width: 880px) {

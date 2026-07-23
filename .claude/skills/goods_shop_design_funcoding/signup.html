@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 페이지마다 제목·설명만 바꾼다 -->
+<title>굿즈샵 — 페이지 제목</title>
+<meta name="description" content="페이지 설명">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- ===== 공통 헤더 : 로고 / 메뉴 / 로그인 상태 ===== -->
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">굿즈<span>샵</span></a>
+    <nav class="site">
+      <a href="index.html">상품</a>
+      <!-- 로그인 상태(로그인 버튼 / 결제내역·관리자·로그아웃)는 auth.js 가 채운다 -->
+      <span id="authBox"></span>
+    </nav>
+  </div>
+</header>
+
+<!-- ===== 본문 : 여기에 페이지 내용을 넣는다 (지금은 비어 있음) ===== -->
+<section>
+  <div class="wrap">
+
+    <!-- 본문 영역 -->
+
+  </div>
+</section>
+
+<!-- ===== 공통 푸터 : 회사 정보 / 약관 링크 =====
+     대괄호 [ ] 안은 실제 값으로 바꾼다. terms.html · privacy.html 은
+     아직 없는 페이지라, 만들거나 실제 약관 주소로 링크를 바꾼다. -->
+<footer class="site">
+  <div class="wrap">
+    <div class="foot-info muted">
+      <div>굿즈샵 · 대표 [대표자명] · 사업자등록번호 [000-00-00000]</div>
+      <div>[사업장 주소] · 문의 [help@example.com]</div>
+    </div>
+    <nav class="foot-links">
+      <a href="terms.html">이용약관</a>
+      <a href="privacy.html">개인정보처리방침</a>
+    </nav>
+  </div>
+</footer>
+
+<!-- 스크립트 순서 고정: supabase CDN → config → format → auth -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/format.js"></script>
+<script src="assets/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* 헤더의 로그인 상태를 그리고, 현재 페이지에 해당하는 메뉴를 활성 표시한다.
+     본문 로직은 이 아래에 페이지마다 추가한다. */
+  App.getUser().then(function (user) {
+    App.renderHeader(user);
+    App.markActiveNav();
+  });
+})();
+</script>
+</body>
+</html>
