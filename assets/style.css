@@ -197,6 +197,16 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 input::placeholder { color: var(--text-dim); }
 
 .hint { font-size: 0.8rem; color: var(--text-dim); margin-top: 6px; }
+.hint.ok   { color: var(--ok); }
+.hint.warn { color: var(--warn); }
+.hint.err  { color: var(--danger); }
+
+/* 비밀번호 강도 막대 (login.html 회원가입 탭). 색은 상태 토큰을 재사용한다. */
+.pw-meter { height: 6px; border-radius: 99px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.pw-meter > i { display: block; height: 100%; width: 0; transition: width 0.2s, background 0.2s; }
+.pw-meter.weak   > i { width: 34%;  background: var(--danger); }
+.pw-meter.mid    > i { width: 67%;  background: var(--warn); }
+.pw-meter.strong > i { width: 100%; background: var(--ok); }
 
 /* 탭 (로그인 / 회원가입 전환) */
 .tabs { display: flex; gap: 4px; background: var(--bg-soft);

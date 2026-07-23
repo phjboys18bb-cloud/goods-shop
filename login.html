@@ -41,7 +41,17 @@
         <label for="password">비밀번호</label>
         <input type="password" id="password" autocomplete="current-password"
                placeholder="6자 이상" required minlength="6">
+        <!-- 회원가입 탭에서만 보이는 강도 막대 -->
+        <div class="pw-meter" id="pwMeter" hidden><i></i></div>
         <div class="hint" id="pwHint"></div>
+      </div>
+
+      <!-- 회원가입 탭에서만 보이는 비밀번호 확인 -->
+      <div class="field" id="confirmField" hidden>
+        <label for="passwordConfirm">비밀번호 확인</label>
+        <input type="password" id="passwordConfirm" autocomplete="new-password"
+               placeholder="비밀번호를 한 번 더 입력">
+        <div class="hint" id="confirmHint"></div>
       </div>
 
       <button type="submit" class="btn btn-block" id="submitBtn">로그인</button>
@@ -70,16 +80,63 @@
 
   var mode = 'login';   // 'login' | 'signup'
 
-  var form      = document.getElementById('form');
-  var emailEl   = document.getElementById('email');
-  var pwEl      = document.getElementById('password');
-  var errEl     = document.getElementById('err');
-  var okEl      = document.getElementById('okMsg');
-  var titleEl   = document.getElementById('title');
-  var submitBtn = document.getElementById('submitBtn');
-  var pwHint    = document.getElementById('pwHint');
-  var tabLogin  = document.getElementById('tabLogin');
-  var tabSignup = document.getElementById('tabSignup');
+  var form       = document.getElementById('form');
+  var emailEl    = document.getElementById('email');
+  var pwEl       = document.getElementById('password');
+  var pwConfirmEl = document.getElementById('passwordConfirm');
+  var errEl      = document.getElementById('err');
+  var okEl       = document.getElementById('okMsg');
+  var titleEl    = document.getElementById('title');
+  var submitBtn  = document.getElementById('submitBtn');
+  var pwHint     = document.getElementById('pwHint');
+  var pwMeter    = document.getElementById('pwMeter');
+  var confirmField = document.getElementById('confirmField');
+  var confirmHint  = document.getElementById('confirmHint');
+  var tabLogin   = document.getElementById('tabLogin');
+  var tabSignup  = document.getElementById('tabSignup');
+
+  /* 비밀번호 강도: 0(짧음) ~ 3(강함).
+     길이 + 글자·숫자 섞임 + 길거나 특수문자 포함 여부로 매긴다. */
+  function strength(pw) {
+    if (pw.length < 6) return 0;
+    var s = 1;
+    if (/[a-zA-Z]/.test(pw) && /[0-9]/.test(pw)) s++;
+    if (pw.length >= 10 || /[^a-zA-Z0-9]/.test(pw)) s++;
+    return s;
+  }
+
+  var METER = { 0: '', 1: 'weak', 2: 'mid', 3: 'strong' };
+  var METER_TEXT = {
+    0: '6자 이상 입력해 주세요.',
+    1: '약함 — 숫자나 특수문자를 섞으면 더 안전합니다.',
+    2: '보통',
+    3: '강함'
+  };
+
+  /* 회원가입 탭에서 비밀번호를 칠 때마다 강도 막대와 안내를 갱신한다. */
+  function updateStrength() {
+    if (mode !== 'signup') return;
+    var lvl = strength(pwEl.value);
+    pwMeter.className = 'pw-meter' + (METER[lvl] ? ' ' + METER[lvl] : '');
+    pwHint.className = 'hint' + (lvl >= 3 ? ' ok' : lvl === 1 ? ' warn' : '');
+    pwHint.textContent = pwEl.value ? METER_TEXT[lvl] : '6자 이상 입력해 주세요.';
+    updateConfirm();
+  }
+
+  /* 비밀번호 확인 일치 여부를 표시한다. */
+  function updateConfirm() {
+    if (mode !== 'signup' || !pwConfirmEl.value) { confirmHint.textContent = ''; return; }
+    if (pwConfirmEl.value === pwEl.value) {
+      confirmHint.className = 'hint ok';
+      confirmHint.textContent = '비밀번호가 일치합니다.';
+    } else {
+      confirmHint.className = 'hint err';
+      confirmHint.textContent = '비밀번호가 일치하지 않습니다.';
+    }
+  }
+
+  pwEl.addEventListener('input', updateStrength);
+  pwConfirmEl.addEventListener('input', updateConfirm);
 
   /* 로그인 후 돌아갈 페이지. 외부 주소로 튕기지 않도록 파일명만 허용한다. */
   function nextPage() {
@@ -94,7 +151,17 @@
     titleEl.textContent   = isLogin ? '로그인' : '회원가입';
     submitBtn.textContent = isLogin ? '로그인' : '가입하고 시작하기';
     pwEl.setAttribute('autocomplete', isLogin ? 'current-password' : 'new-password');
-    pwHint.textContent    = isLogin ? '' : '6자 이상 입력해 주세요.';
+
+    /* 회원가입 전용 요소(강도 막대·비밀번호 확인)는 가입 탭에서만 보인다. */
+    pwMeter.hidden      = isLogin;
+    confirmField.hidden = isLogin;
+
+    pwHint.className = 'hint';
+    pwHint.textContent = isLogin ? '' : '6자 이상 입력해 주세요.';
+    confirmHint.textContent = '';
+    pwConfirmEl.value = '';
+    pwMeter.className = 'pw-meter';
+    if (!isLogin) updateStrength();
 
     tabLogin.classList.toggle('on', isLogin);
     tabSignup.classList.toggle('on', !isLogin);
@@ -116,6 +183,13 @@
 
     if (!email) { errEl.textContent = '이메일을 입력해 주세요.'; return; }
     if (pw.length < 6) { errEl.textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
+
+    /* 회원가입일 때만 비밀번호 확인 일치를 검사한다. */
+    if (mode === 'signup' && pwConfirmEl.value !== pw) {
+      errEl.textContent = '비밀번호가 일치하지 않습니다. 확인란을 다시 입력해 주세요.';
+      pwConfirmEl.focus();
+      return;
+    }
 
     submitBtn.disabled = true;
     submitBtn.textContent = '처리 중…';
