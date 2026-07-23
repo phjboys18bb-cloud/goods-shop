@@ -61,8 +61,10 @@
   if (code)    rows.push(['오류 코드', Fmt.escape(code)]);
   rows.push(['사유', Fmt.escape(message || '알 수 없는 이유로 결제가 중단되었습니다.')]);
 
+  // dt(라벨)는 템플릿에서 이스케이프, dd(값)는 호출부에서 이미 이스케이프해 넘긴다.
+  // payment-success.html 과 같은 규칙. (CLAUDE.md 의 이스케이프 규칙 통일)
   document.getElementById('detail').innerHTML = rows.map(function (r) {
-    return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
+    return '<dt>' + Fmt.escape(r[0]) + '</dt><dd>' + r[1] + '</dd>';
   }).join('');
 
   App.getUser().then(function (user) {

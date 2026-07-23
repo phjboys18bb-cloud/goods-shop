@@ -41,6 +41,8 @@ start index.html      # 브라우저로 열기 (결제까지 테스트하려면 
 
 **보안 판단을 프론트엔드에 맡기지 않는다.** `admin.html`의 `if (!App.isAdmin(user))`는 화면 편의용이다. 실제 차단은 DB의 `is_admin()`과 RLS 정책이 한다. 프론트의 if문은 개발자도구로 지울 수 있지만 RLS는 못 지운다.
 
+관리자 판별은 **이메일이 아니라 `admins` 테이블 등록 여부**로 한다(`004_review_fixes.sql`). 이메일 인증을 꺼둔 탓에, 이메일 문자열로 판별하면 `admin@admin.com`을 선점당했을 때 뚫린다. `admins`에 UUID로 등록된 계정만 관리자다. 새 관리자를 추가하려면 대시보드 SQL Editor에서 `insert into admins (user_id) values ('<uuid>')`. `assets/config.js`의 `ADMIN_EMAIL`은 화면 표시(관리자 메뉴 노출)에만 쓰이고 권한과 무관하다.
+
 **결제 금액을 브라우저 값으로 믿지 않는다.** Edge Function이 `products.price × quantity`로 다시 계산해서 대조한다. 이 검증을 지우면 5만원짜리를 100원에 살 수 있게 된다.
 
 ## 코드 관례
@@ -54,7 +56,7 @@ start index.html      # 브라우저로 열기 (결제까지 테스트하려면 
 
 ## 자주 하는 작업
 
-**상품 추가·수정** — Supabase 대시보드 → Table Editor → `products`. 또는 `supabase/migrations/002_seed_products.sql`을 고쳐서 SQL Editor에 붙여넣는다.
+**상품 추가·수정** — Supabase 대시보드 → Table Editor → `products`. 또는 `supabase/migrations/002_seed_products.sql`을 고쳐서 SQL Editor에 붙여넣는다. `products.name`에 unique 제약이 있어(`004_review_fixes.sql`) 시드를 다시 실행해도 같은 이름 상품은 중복 생성되지 않는다.
 
 **DB 스키마 변경** — `supabase/migrations/`에 새 `.sql` 파일을 만들고 대시보드 SQL Editor에서 실행한다. 이 폴더는 기록용이며 자동 적용되지 않는다.
 
@@ -74,7 +76,7 @@ git add -A; git commit -m "메시지"; git push
 
 의도적으로 안 만든 것들이다. 버그가 아니다.
 
-- **재고가 줄지 않는다.** 결제해도 `products.stock`은 그대로다.
+- **재고가 줄지 않는다.** 결제해도 `products.stock`은 그대로다. 단, 재고가 0인 상품은 결제되지 않는다(Edge Function이 승인 직전에 막는다).
 - **환불·주문취소 없다.** 토스 취소 API를 연동하지 않았다.
 - **장바구니 없다.** 한 번에 한 상품, 수량 1개 고정이다.
 - **관리자가 상품을 수정하는 화면이 없다.** 조회만 된다.

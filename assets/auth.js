@@ -1,13 +1,34 @@
 /* ---- Supabase 클라이언트 + 로그인 상태 관리 -------------------------------
-   모든 페이지가 이 파일을 읽는다. 순서: config.js → (supabase CDN) → auth.js
+   모든 페이지가 이 파일을 읽는다.
+   로드 순서: supabase CDN → config.js → format.js → auth.js
+   (auth.js 는 renderHeader 에서 Fmt.escape 를 쓰므로 format.js 뒤여야 한다)
 ------------------------------------------------------------------------- */
 (function () {
   'use strict';
 
   var cfg = window.APP_CONFIG;
 
+  /* Supabase 라이브러리(CDN)가 안 실려오면 App 이 아예 없어서, 각 페이지의
+     App.getUser() 가 'App is not defined' 로 죽고 화면엔 스피너만 남는다.
+     그런 상황에서도 사용자에게 원인을 알리도록, 모든 메서드가 안내를 띄우는
+     "실패 스텁" 으로 App 을 정의해 둔다. */
   if (!window.supabase || !window.supabase.createClient) {
     console.error('Supabase 라이브러리를 불러오지 못했습니다.');
+    var msg = '네트워크 문제로 필요한 라이브러리를 불러오지 못했습니다. 새로고침하거나 잠시 후 다시 시도해 주세요.';
+    var rejected = function () { return Promise.reject(new Error(msg)); };
+    window.App = {
+      sb: null,
+      getUser: function () { return Promise.resolve(null); },
+      getToken: function () { return Promise.resolve(null); },
+      isAdmin: function () { return false; },
+      requireLogin: rejected,
+      logout: function () { location.reload(); },
+      markActiveNav: function () {},
+      renderHeader: function () {
+        var box = document.getElementById('authBox');
+        if (box) box.textContent = '연결 오류';
+      }
+    };
     return;
   }
 

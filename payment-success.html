@@ -109,11 +109,15 @@
     App.renderHeader(user);
     if (!user) {
       fail('로그인 정보가 만료됐습니다. 다시 로그인한 뒤 결제 내역을 확인해 주세요.');
-      return null;
+      return 'HANDLED';   // 이미 fail() 을 불렀다는 신호
     }
     return App.getToken();
   }).then(function (token) {
-    if (!token) return null;
+    if (token === 'HANDLED') return null;   // 비로그인 — 위에서 이미 처리됨
+
+    /* getUser 는 됐는데 토큰이 없는 경우(다른 탭에서 로그아웃, 토큰 만료 등).
+       이 분기가 없으면 아래 result 체크에서 조용히 끝나 스피너가 영원히 돈다. */
+    if (!token) { fail('로그인 정보가 만료됐습니다. 다시 로그인한 뒤 결제 내역을 확인해 주세요.'); return null; }
 
     /* 승인 요청은 반드시 서버(Edge Function)를 거친다.
        브라우저가 토스 승인 API 를 직접 부르려면 시크릿 키가 필요한데,

@@ -6,10 +6,11 @@
 //   이 API 는 시크릿 키로 인증하는데, 시크릿 키를 브라우저에 두면 누구나 훔쳐볼 수 있다.
 //   GitHub Pages 는 정적 호스팅이라 서버가 없으므로, 이 Edge Function 이 서버 역할을 한다.
 //
-// 이 함수가 막는 공격:
-//   1) 금액 위조 — 5만원짜리를 100원에 결제 요청하는 것
-//   2) 남의 주문 승인 — 다른 사람의 orderId 로 승인을 시도하는 것
-//   3) 중복 승인 — 이미 결제된 주문을 다시 승인하는 것
+// 이 함수가 막는 것:
+//   1) 금액 위조   — 5만원짜리를 100원에 결제 요청
+//   2) 남의 주문   — 다른 사람의 orderId 로 승인 시도
+//   3) 중복/동시 승인 — 같은 주문을 두 번 승인 (PROCESSING 선점으로 차단)
+//   4) 품절 상품   — 재고가 없는 상품의 결제
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
   // ---- 2. 주문 조회 --------------------------------------------------------
   const { data: order, error: orderErr } = await admin
     .from("orders")
-    .select("id, user_id, product_id, quantity, amount, status, products(price)")
+    .select("id, user_id, product_id, quantity, amount, status, products(price, stock)")
     .eq("order_id", orderId)
     .maybeSingle();
 
@@ -83,28 +84,65 @@ Deno.serve(async (req) => {
     return json({ message: "본인의 주문이 아닙니다." }, 403);
   }
 
-  // ---- 4. 중복 승인 차단 ---------------------------------------------------
+  // ---- 4. 상태 확인 --------------------------------------------------------
   if (order.status === "PAID") {
     return json({ ok: true, alreadyPaid: true, message: "이미 결제가 완료된 주문입니다." });
+  }
+  if (order.status === "PROCESSING") {
+    return json({ message: "이미 결제를 처리하고 있습니다. 잠시 후 결제 내역을 확인해 주세요." }, 409);
   }
   if (order.status !== "PENDING") {
     return json({ message: "결제를 진행할 수 없는 주문 상태입니다." }, 409);
   }
 
-  // ---- 5. 금액 검증 (이 프로젝트에서 가장 중요한 부분) -----------------------
+  // ---- 5. 주문 선점 (동시 승인 차단) ----------------------------------------
+  // "status 가 아직 PENDING 인 행" 만 PROCESSING 으로 바꾼다.
+  // 두 요청이 동시에 들어와도 DB 가 한쪽만 통과시키므로, 승인 API 가 두 번 불리지 않는다.
+  // 이 선점이 없으면: 1번이 성공해 PAID 로 바꾼 뒤, 2번이 토스에서 거부당하고
+  //                   그 주문을 FAILED 로 덮어써서 "결제됐는데 실패로 보이는" 상태가 된다.
+  const { data: claimed, error: claimErr } = await admin
+    .from("orders")
+    .update({ status: "PROCESSING" })
+    .eq("id", order.id)
+    .eq("status", "PENDING")
+    .select("id")
+    .maybeSingle();
+
+  if (claimErr) return json({ message: "주문 상태를 갱신하지 못했습니다." }, 500);
+  if (!claimed) {
+    return json({ message: "이미 다른 요청이 결제를 처리하고 있습니다. 결제 내역을 확인해 주세요." }, 409);
+  }
+
+  // 선점 이후의 실패는 반드시 PROCESSING → FAILED 로만 되돌린다.
+  // (조건을 걸어두면 다른 요청이 PAID 로 바꾼 행을 덮어쓸 수 없다)
+  const markFailed = (raw: unknown) =>
+    admin.from("orders")
+      .update({ status: "FAILED", toss_raw: raw })
+      .eq("id", order.id)
+      .eq("status", "PROCESSING");
+
+  // ---- 6. 금액·재고 검증 (이 프로젝트에서 가장 중요한 부분) -------------------
   // 브라우저가 보낸 amount 를 믿지 않고, DB 의 상품 가격 × 수량으로 다시 계산한다.
-  const product = order.products as unknown as { price: number } | null;
-  if (!product) return json({ message: "상품 정보를 찾을 수 없습니다." }, 500);
+  const product = order.products as unknown as { price: number; stock: number } | null;
+  if (!product) {
+    await markFailed({ reason: "PRODUCT_NOT_FOUND" });
+    return json({ message: "상품 정보를 찾을 수 없습니다." }, 500);
+  }
 
   const expected = product.price * order.quantity;
   if (expected !== amount || expected !== order.amount) {
-    await admin.from("orders")
-      .update({ status: "FAILED", toss_raw: { reason: "AMOUNT_MISMATCH", expected, received: amount } })
-      .eq("id", order.id);
+    await markFailed({ reason: "AMOUNT_MISMATCH", expected, received: amount });
     return json({ message: "결제 금액이 상품 가격과 일치하지 않습니다." }, 400);
   }
 
-  // ---- 6. 토스 승인 API 호출 ------------------------------------------------
+  // 품절 상품 차단. 프론트의 disabled 속성은 개발자도구로 지울 수 있으므로
+  // 여기서 한 번 더 본다.
+  if (product.stock < order.quantity) {
+    await markFailed({ reason: "OUT_OF_STOCK", stock: product.stock, requested: order.quantity });
+    return json({ message: "재고가 부족한 상품입니다." }, 409);
+  }
+
+  // ---- 7. 토스 승인 API 호출 ------------------------------------------------
   const basic = btoa(TOSS_SECRET_KEY + ":");
   let tossRes: Response, toss: Record<string, unknown>;
   try {
@@ -115,14 +153,13 @@ Deno.serve(async (req) => {
     });
     toss = await tossRes.json();
   } catch {
+    await markFailed({ reason: "TOSS_UNREACHABLE" });
     return json({ message: "결제사 연결에 실패했습니다. 잠시 후 다시 시도해 주세요." }, 502);
   }
 
-  // ---- 7. 결과 기록 --------------------------------------------------------
+  // ---- 8. 결과 기록 --------------------------------------------------------
   if (!tossRes.ok) {
-    await admin.from("orders")
-      .update({ status: "FAILED", toss_raw: toss })
-      .eq("id", order.id);
+    await markFailed(toss);
     return json({ message: (toss.message as string) ?? "결제 승인에 실패했습니다.", code: toss.code }, 400);
   }
 
@@ -133,10 +170,12 @@ Deno.serve(async (req) => {
       paid_at: new Date().toISOString(),
       toss_raw: toss,
     })
-    .eq("id", order.id);
+    .eq("id", order.id)
+    .eq("status", "PROCESSING");
 
   if (updateErr) {
     // 결제는 됐는데 DB 기록에 실패한 경우 — 사용자에게 알리고 로그로 남긴다.
+    // 이때는 FAILED 로 바꾸지 않는다. 실제로 돈은 결제됐기 때문이다.
     console.error("결제 승인 후 DB 갱신 실패", { orderId, updateErr });
     return json({ message: "결제는 완료됐지만 기록 저장에 실패했습니다. 고객센터에 문의해 주세요." }, 500);
   }
